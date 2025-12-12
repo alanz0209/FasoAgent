@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="2" dy="4" stdDeviation="4" flood-color="#000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  
+  <!-- Background Flag -->
+  <rect width="512" height="256" fill="#EF3340"/>
+  <rect y="256" width="512" height="256" fill="#009E60"/>
+  
+  <!-- Text FASO (Top Red Part) -->
+  <text x="256" y="140" font-family="Arial, sans-serif" font-weight="900" font-size="100" text-anchor="middle" fill="white" filter="url(#shadow)" letter-spacing="4">FASO</text>
+  
+  <!-- Text AGENT (Bottom Green Part) -->
+  <text x="256" y="450" font-family="Arial, sans-serif" font-weight="900" font-size="100" text-anchor="middle" fill="white" filter="url(#shadow)" letter-spacing="4">AGENT</text>
+  
+  <!-- Central Yellow Star -->
+  <!-- Centered at 256, 275 roughly to sit between texts -->
+  <polygon points="256,190 282,270 366,270 298,320 324,400 256,350 188,400 214,320 146,270 230,270" fill="#FCD116" filter="url(#shadow)"/>
+</svg>
