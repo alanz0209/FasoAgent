@@ -10,7 +10,15 @@ let headlinesCache: { data: string[], timestamp: number } | null = null;
 
 const getClient = (): GoogleGenAI => {
   if (!client) {
-    const apiKey = process.env.API_KEY;
+    // Try multiple environment variable names for compatibility
+    // Try multiple environment variable names for compatibility
+    const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+    console.log("API Key availability check", { 
+      hasGeminiApiKey: !!process.env.GEMINI_API_KEY,
+      hasApiKey: !!process.env.API_KEY,
+      firstCharsOfApiKey: apiKey ? apiKey.substring(0, 5) + '...' : 'NONE'
+    });
+    
     if (!apiKey) {
       console.warn("Clé API manquante. Mode dégradé activé.");
       // On ne throw pas d'erreur ici pour permettre au reste de l'app de charger, 
@@ -24,8 +32,12 @@ const getClient = (): GoogleGenAI => {
 
 export const initializeChat = async () => {
   try {
+    console.log("Initializing chat session");
     const ai = getClient();
-    if (!ai) return; // Mode sans clé API
+    if (!ai) {
+      console.log("No AI client available");
+      return; // Mode sans clé API
+    }
     
     // Dynamic System Instruction with Date
     const currentDate = new Date().toLocaleDateString('fr-FR', { 
@@ -37,8 +49,15 @@ export const initializeChat = async () => {
         minute: '2-digit'
     });
 
-    const dynamicSystemInstruction = `${SYSTEM_INSTRUCTION}\n\n[CONTEXTE TEMPOREL]\nNous sommes le : ${currentDate}. Utilise cette date pour répondre aux questions sur l'actualité (ex: "aujourd'hui", "hier").\n\n[RAPPEL CRITIQUE]\nN'utilise JAMAIS de sources internationales (RFI, France24, Jeune Afrique, etc.). Tes connaissances doivent venir uniquement de : AIB, Sidwaya, LeFaso.net, RTB, Burkina24, LefasoTV, Omega (médias nationaux uniquement).`;
+    const dynamicSystemInstruction = `${SYSTEM_INSTRUCTION}
 
+[CONTEXTE TEMPOREL]
+Nous sommes le : ${currentDate}. Utilise cette date pour répondre aux questions sur l'actualité (ex: "aujourd'hui", "hier").
+
+[RAPPEL CRITIQUE]
+N'utilise JAMAIS de sources internationales (RFI, France24, Jeune Afrique, etc.). Tes connaissances doivent venir uniquement de : AIB, Sidwaya, LeFaso.net, RTB, Burkina24, LefasoTV, Omega (médias nationaux uniquement).`;
+
+    console.log("Creating chat session with model gemini-2.5-flash");
     chatSession = ai.chats.create({
         model: 'gemini-2.5-flash', // OPTIMISATION: Utilisation de Flash partout pour la rapidité en local
         config: {
@@ -46,18 +65,24 @@ export const initializeChat = async () => {
         tools: [{ googleSearch: {} }], // Enable real-time info for news
         },
     });
+    console.log("Chat session created successfully");
   } catch (error) {
     console.error("Erreur initialisation chat:", error);
   }
 };
 
 export const sendMessageToGemini = async (message: string): Promise<{ text: string, groundingChunks?: any[] }> => {
+  // Log for debugging in production
+  console.log("Attempting to send message to Gemini");
+  
   if (!chatSession) {
+    console.log("No chat session, initializing...");
     await initializeChat();
   }
 
   // Fallback si pas de session (ex: pas de clé API en local)
   if (!chatSession) {
+     console.log("No chat session available, returning fallback response");
      // Simulation d'une réponse pour éviter le crash en local
      return { 
          text: "⚠️ **Mode Local (Sans Clé API)** : Je ne peux pas contacter l'IA sans clé API configurée. Veuillez ajouter `API_KEY` dans votre environnement. En attendant, je peux afficher l'interface mais je ne peux pas 'réfléchir'.",
@@ -66,7 +91,10 @@ export const sendMessageToGemini = async (message: string): Promise<{ text: stri
   }
 
   try {
+    console.log("Sending message to Gemini API");
+    console.log("Sending message to chat session", { messageLength: message.length });
     const response: GenerateContentResponse = await chatSession.sendMessage({ message });
+    console.log("Received response from chat session", { hasText: !!response.text, candidatesCount: response.candidates?.length || 0 });
     
     // Extract text
     const text = response.text || "Désolé, je n'ai pas pu générer de réponse.";
@@ -74,6 +102,7 @@ export const sendMessageToGemini = async (message: string): Promise<{ text: stri
     // Extract grounding metadata (sources)
     const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
 
+    console.log("Received response from Gemini API");
     return { text, groundingChunks };
   } catch (error) {
     console.error("Erreur Gemini:", error);
